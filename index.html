@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İstanbul Havalimanı (LTFM) Açık Kaynak Tahmin Panosu</title>
+    
+    <!-- Firebase SDK (v9/v10 Compatibility Mode) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --primary-turkuaz: #008080;
+            --light-turkuaz: #e0f2f1;
+            --dark-turkuaz: #004d40;
+            --accent-pink: #e91e63;
+            --light-pink: #fce4ec;
+            --dark-pink: #c2185b;
+            --bg-color: #f7fafc;
+            --card-bg: #ffffff;
+            --text-color: #2d3748;
+            --border-color: #b2dfdb;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-top: 6px solid var(--primary-turkuaz);
+        }
+
+        h1 {
+            color: var(--primary-turkuaz);
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .responsibilities {
+            background-color: #ffebee;
+            border: 2px solid var(--dark-pink);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            color: #b71c1c;
+            font-weight: bold;
+        }
+
+        .responsibilities ol {
+            margin: 5px 0 0 20px;
+            padding: 0;
+        }
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--light-turkuaz);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .stat-card .val {
+            font-size: 1.6em;
+            font-weight: bold;
+            color: var(--dark-turkuaz);
+        }
+
+        .nav-tabs {
+            display: flex;
+            border-bottom: 3px solid var(--primary-turkuaz);
+            margin-bottom: 25px;
+            gap: 6px;
+            position: relative;
+            flex-wrap: wrap;
+        }
+
+        .nav-tab {
+            padding: 12px 22px;
+            background-color: var(--light-turkuaz);
+            color: var(--dark-turkuaz);
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95em;
+            transition: all 0.2s ease;
+            position: relative;
+            bottom: -3px;
+        }
+
+        .nav-tab:hover {
+            background-color: var(--light-pink);
+            color: var(--dark-pink);
+        }
+
+        .nav-tab.active {
+            background-color: var(--primary-turkuaz);
+            color: white;
+            border-color: var(--primary-turkuaz);
+            border-bottom: 4px solid var(--accent-pink);
+            padding-bottom: 11px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            overflow-x: auto;
+        }
+
+        .card-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--dark-turkuaz);
+            border-bottom: 2px solid var(--light-turkuaz);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table.model-table, table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        table.model-table th, table.model-table td,
+        table.data-table th, table.data-table td {
+            border: 1px solid #cbd5e0;
+            padding: 8px 6px;
+        }
+
+        .header-bugun { background-color: var(--primary-turkuaz); color: white; }
+        .header-yarin { background-color: #e57373; color: white; }
+        .header-avg { background-color: var(--light-pink); color: var(--dark-pink); font-weight: bold; }
+
+        .bg-avg-col {
+            background-color: #fff0f5;
+            font-weight: bold;
+            text-align: left;
+            padding: 10px;
+            vertical-align: middle;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--dark-turkuaz);
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background-color: var(--accent-pink); color: white; }
+        .btn-secondary { background-color: var(--primary-turkuaz); color: white; }
+
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: none;
+            font-weight: bold;
+        }
+        .alert-error { background-color: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+        .alert-success { background-color: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+
+        @media print {
+            body { padding: 0; background: white; }
+            .container { box-shadow: none; border: none; max-width: 100%; }
+            .nav-tabs, .btn, .responsibilities, .stats-bar { display: none !important; }
+            .tab-content { display: block !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>
+        <span>İstanbul Havalimanı (LTFM) Açık Kaynak Tahmin Panosu</span>
+        <button class="btn btn-secondary" onclick="refreshLiveData()">Verileri Yenile</button>
+    </h1>
+
+    <div class="responsibilities">
+        <strong>Unutulmaması Gereken Üç Sorumluluk:</strong>
+        <ol>
+            <li>EN AZ %70 KATILIM ZORUNLUDUR.</li>
+            <li>HER TAHMİN GÜNÜ İSTANBUL SAATİYLE 21:00’E KADAR GÖNDERİN.</li>
+            <li>HER GÜN DÜNÜ KONTROL EDİN VE DERS ÇIKARIN.</li>
+        </ol>
+    </div>
+
+    <!-- Katılım Metriği Panosu -->
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div>Toplam Tahmin Sayısı</div>
+            <div class="val" id="stat-total-forecasts">0</div>
+        </div>
+        <div class="stat-card">
+            <div>Katılım Oranı (Hedef: ≥%70)</div>
+            <div class="val" id="stat-participation-rate">%0</div>
+        </div>
+        <div class="stat-card">
+            <div>Ortalama Sıcaklık Hatası (MAE)</div>
+            <div class="val" id="stat-mae-temp">0.0 °C</div>
+        </div>
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('read-weather', this)">Read weather</button>
+        <button class="nav-tab" onclick="switchTab('make-forecast', this)">Make a forecast</button>
+        <button class="nav-tab" onclick="switchTab('check-errors', this)">Check errors</button>
+        <button class="nav-tab" onclick="switchTab('review-progress', this)">Review progress</button>
+        <button class="nav-tab" onclick="switchTab('save-report', this)">Save your report</button>
+    </div>
+
+    <!-- 1. SEKME: READ WEATHER -->
+    <div id="read-weather" class="tab-content active">
+        <div class="card">
+            <div class="card-header">
+                <span>Canlı Gözlem (LTFM METAR - IEM Iowa State)</span>
+                <span id="obs-time" style="font-size: 0.8em; font-weight: normal;"></span>
+            </div>
+            <div id="live-obs-container">Gözlem verileri çekiliyor...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span>Açık Kaynak Tahmin Modelleri ve Persistence Referansı</span>
+            </div>
+            <table class="model-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2">Kaynak / Servis</th>
+                        <th rowspan="2">Model Altyapısı & Detay</th>
+                        <th colspan="4" class="header-bugun">BUGÜN (Tahmin Edilen)</th>
+                        <th colspan="4" class="header-yarin">YARIN (Tahmin Edilen)</th>
+                        <th rowspan="2" class="header-avg">Ortalama BUGÜN</th>
+                        <th rowspan="2" class="header-avg">Ortalama YARIN</th>
+                    </tr>
+                    <tr>
+                        <th class="header-bugun">Tmax (°C)</th>
+                        <th class="header-bugun">Tmin (°C)</th>
+                        <th class="header-bugun">Yağış (mm)</th>
+                        <th class="header-bugun">Rüzgâr (kt)</th>
+                        <th class="header-yarin">Tmax (°C)</th>
+                        <th class="header-yarin">Tmin (°C)</th>
+                        <th class="header-yarin">Yağış (mm)</th>
+                        <th class="header-yarin">Rüzgâr (kt)</th>
+                    </tr>
+                </thead>
+                <tbody id="multi-model-tbody">
+                    <tr><td colspan="12">Açık kaynak modeller yükleniyor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. SEKME: MAKE A FORECAST -->
+    <div id="make-forecast" class="tab-content">
+        <div class="card">
+            <div class="card-header">Yarın İçin Tahmin Gir</div>
+            <form id="forecast-form" onsubmit="handleForecastSubmit(event)">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="f-date">Tahmin Tarihi:</label>
+                        <input type="date" id="f-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-tmax">Tmax (°C):</label>
+                        <input type="number" step="0.1" id="f-tmax" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-tmin">Tmin (°C):</label>
+                        <input type="number" step="0.1" id="f-tmin" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-precip">Yağış (mm):</label>
+                        <input type="number" step="0.1" min="0" id="f-precip" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="f-wind">Rüzgâr (Knot):</label>
+                        <input type="number" step="0.1" min="0" id="f-wind" required>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="f-confidence">Güven Düzeyi:</label>
+                    <select id="f-confidence" required>
+                        <option value="">Seçiniz...</option>
+                        <option value="Low">Low (Düşük)</option>
+                        <option value="Medium">Medium (Orta)</option>
+                        <option value="High">High (Yüksek)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label for="f-reasoning">Tahmin Gerekçesi (Synoptic / Mesoscale Analysis):</label>
+                    <textarea id="f-reasoning" rows="3" placeholder="Tahmin gerekçenizi yazınız..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Tahmini Kaydet</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. SEKME: CHECK ERRORS -->
+    <div id="check-errors" class="tab-content">
+        <div class="card">
+            <div class="card-header">Hata Kontrolü ve Doğrulama (Verification)</div>
+            <p style="font-size:0.9em; color:#555;">Tahminlerinizin gerçekleşen METAR gözlemleri ile doğrulanması ve mutlak hatası (|Tahmin - Gerçek|):</p>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Tahmin Tmax</th>
+                        <th>Gözlenen Tmax</th>
+                        <th>Hata Tmax</th>
+                        <th>Tahmin Yağış</th>
+                        <th>Gözlenen Yağış</th>
+                        <th>Hata Yağış</th>
+                        <th>Güven</th>
+                        <th>Gerekçe</th>
+                    </tr>
+                </thead>
+                <tbody id="error-check-tbody">
+                    <tr><td colspan="9">Henüz doğrulanmış tahmin verisi bulunmuyor.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 4. SEKME: REVIEW PROGRESS -->
+    <div id="review-progress" class="tab-content">
+        <div class="card">
+            <div class="card-header">Gelişim İncelemesi ve Performans Metrikleri</div>
+            <div id="progress-summary">
+                <p><strong>Öğrenci Performans Karnesi:</strong></p>
+                <ul id="progress-list">
+                    <li>Katılım durumu hesaplanıyor...</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. SEKME: SAVE YOUR REPORT -->
+    <div id="save-report" class="tab-content">
+        <div class="card">
+            <div class="card-header">
+                <span>Raporu Kaydet ve Dışa Aktar</span>
+                <button class="btn btn-primary" onclick="window.print()">Yazdır / PDF Olarak Kaydet</button>
+            </div>
+            <p style="color: #666;">Aşağıda canlı gözlem, model ortalamaları ve geçmiş tahmin kayıtlarınızın özet raporu yer almaktadır:</p>
+            <div id="report-summary-box" style="background: var(--light-turkuaz); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                Rapor özeti oluşturuluyor...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Firebase Yapılandırması (Eğer Firebase kullanıyorsanız bilgilerinizi yazın)
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    let forecastsRef = null;
+    let isFirebaseReady = false;
+
+    // Safe Firebase Başlatma
+    try {
+        if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.database();
+            forecastsRef = db.ref('ltfm_forecasts');
+            isFirebaseReady = true;
+
+            forecastsRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    const fbList = [];
+                    Object.keys(data).forEach(key => {
+                        fbList.push({ id: key, ...data[key] });
+                    });
+                    appState.forecasts = fbList;
+                    localStorage.setItem('ltfm_local_forecasts', JSON.stringify(fbList));
+                    updateMetricsAndErrors();
+                }
+            });
+        }
+    } catch (e) {
+        console.warn("Firebase başlatılamadı, yerel hafıza (localStorage) kullanılacak.", e);
+    }
+
+    let appState = {
+        liveObs: null,
+        avgBugun: null,
+        avgYarin: null,
+        forecasts: JSON.parse(localStorage.getItem('ltfm_local_forecasts') || '[]')
+    };
+
+    function applyFillPersistence(val, fallback = 0) {
+        if (val === null || val === undefined || isNaN(val)) {
+            return fallback;
+        }
+        return val;
+    }
+
+    function showAlert(msg, isError = true) {
+        const alertBox = document.getElementById('alert-box');
+        alertBox.className = `alert ${isError ? 'alert-error' : 'alert-success'}`;
+        alertBox.innerText = msg;
+        alertBox.style.display = 'block';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setTimeout(() => { alertBox.style.display = 'none'; }, 5000);
+    }
+
+    function switchTab(tabName, el) {
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        if (el) {
+            el.classList.add('active');
+        } else {
+            const tabs = document.querySelectorAll('.nav-tab');
+            tabs.forEach(tab => {
+                if(tab.getAttribute('onclick').includes(tabName)) tab.classList.add('active');
+            });
+        }
+        document.getElementById(tabName).classList.add('active');
+    }
+
+    async function refreshLiveData() {
+        const now = new Date();
+        const d2 = now.toISOString().split('T')[0].split('-');
+        
+        const past = new Date(now.getTime() - (5 * 24 * 60 * 60 * 1000));
+        const d1 = past.toISOString().split('T')[0].split('-');
+
+        const metarUrl = `https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?station=LTFM&data=tmpc,sknt,p01m,metar&year1=${d1[0]}&month1=${d1[1]}&day1=${d1[2]}&year2=${d2[0]}&month2=${d2[1]}&day2=${d2[2]}&tz=UTC&format=onlycomma&latlon=no&missing=empty&trace=empty`;
+        
+        try {
+            const res = await fetch(metarUrl);
+            if (res.ok) {
+                const text = await res.text();
+                parseMETAR(text);
+            }
+        } catch (e) {
+            console.error('METAR verisi alınamadı:', e);
+        }
+
+        const omMultiUrl = `https://api.open-meteo.com/v1/forecast?latitude=41.2753&longitude=28.7519&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&wind_speed_unit=kn&timezone=Europe%2FIstanbul&forecast_days=2&models=ecmwf_ifs025,gfs_seamless,icon_seamless,gem_seamless`;
+        
+        try {
+            const res = await fetch(omMultiUrl);
+            if (res.ok) {
+                const data = await res.json();
+                parseMultiModels(data);
+            }
+        } catch (e) {
+            showAlert('Model verileri yüklenirken hata oluştu.');
+        }
+
+        updateMetricsAndErrors();
+    }
+
+    function parseMETAR(csvText) {
+        const lines = csvText.trim().split('\n');
+        if (lines.length <= 1) return;
+        
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const tmpcIdx = headers.indexOf('tmpc');
+        const skntIdx = headers.indexOf('sknt');
+        const p01mIdx = headers.indexOf('p01m');
+        const metarIdx = headers.indexOf('metar');
+
+        let lastLine = [];
+        for (let i = lines.length - 1; i > 0; i--) {
+            const row = lines[i].split(',');
+            if (row.length >= headers.length) {
+                lastLine = row;
+                break;
+            }
+        }
+
+        if (lastLine.length >= headers.length) {
+            const rawTemp = parseFloat(lastLine[tmpcIdx]);
+            let rawWind = parseFloat(lastLine[skntIdx]);
+            const rawPrecip = parseFloat(lastLine[p01mIdx]);
+            const rawMetar = lastLine[metarIdx] || '';
+
+            if (isNaN(rawWind) && rawMetar) {
+                const windMatch = rawMetar.match(/\b\d{3}(\d{2})(?:G\d{2})?KT\b/);
+                if (windMatch) {
+                    rawWind = parseFloat(windMatch[1]);
+                }
+            }
+
+            appState.liveObs = {
+                temp: !isNaN(rawTemp) ? rawTemp : 'Eksik',
+                wind: !isNaN(rawWind) ? rawWind : 0,
+                precip: !isNaN(rawPrecip) ? rawPrecip : 0.0,
+                raw: rawMetar || 'N/A'
+            };
+            renderObs();
+            updateReportSummary();
+        }
+    }
+
+    function renderObs() {
+        const obsContainer = document.getElementById('live-obs-container');
+        if (appState.liveObs) {
+            obsContainer.innerHTML = `
+                <p>
+                    <strong>Son Sıcaklık:</strong> ${appState.liveObs.temp} °C | 
+                    <strong>Sürekli Rüzgâr:</strong> ${appState.liveObs.wind} kt | 
+                    <strong style="color:var(--accent-pink);">Son 1 Saatlik Yağış:</strong> ${appState.liveObs.precip} mm
+                </p>
+                <p style="font-size:0.85em; color:#666;"><strong>Ham METAR:</strong> ${appState.liveObs.raw}</p>
+            `;
+        }
+    }
+
+    function parseMultiModels(apiData) {
+        const modelMap = [
+            { key: 'ecmwf_ifs025', name: 'Open-Meteo (ECMWF)', detail: 'Avrupa Modeli (IFS 0.25°)' },
+            { key: 'gfs_seamless', name: 'NOAA GFS & NWS', detail: 'ABD Küresel Modeli' },
+            { key: 'icon_seamless', name: 'DWD Open Data', detail: 'Almanya Servisi (ICON)' },
+            { key: 'gem_seamless', name: 'MeteoBlue / GEM', detail: 'Kanada / MultiModel Ağı' }
+        ];
+
+        let tbodyHTML = '';
+        let sumBugun = { tmax: 0, tmin: 0, precip: 0, wind: 0, count: 0 };
+        let sumYarin = { tmax: 0, tmin: 0, precip: 0, wind: 0, count: 0 };
+
+        modelMap.forEach((m, idx) => {
+            const keyMax = `temperature_2m_max_${m.key}`;
+            const keyMin = `temperature_2m_min_${m.key}`;
+            const keyPre = `precipitation_sum_${m.key}`;
+            const keyWnd = `wind_speed_10m_max_${m.key}`;
+
+            if (apiData.daily && apiData.daily[keyMax]) {
+                const bTmax = applyFillPersistence(apiData.daily[keyMax][0], 0);
+                const bTmin = applyFillPersistence(apiData.daily[keyMin][0], 0);
+                const bPre  = applyFillPersistence(apiData.daily[keyPre][0], 0.0);
+                const bWnd  = applyFillPersistence(apiData.daily[keyWnd][0], 0);
+
+                const yTmax = applyFillPersistence(apiData.daily[keyMax][1], 0);
+                const yTmin = applyFillPersistence(apiData.daily[keyMin][1], 0);
+                const yPre  = applyFillPersistence(apiData.daily[keyPre][1], 0.0);
+                const yWnd  = applyFillPersistence(apiData.daily[keyWnd][1], 0);
+
+                sumBugun.tmax += bTmax; sumBugun.tmin += bTmin; sumBugun.precip += bPre; sumBugun.wind += bWnd; sumBugun.count++;
+                sumYarin.tmax += yTmax; sumYarin.tmin += yTmin; sumYarin.precip += yPre; sumYarin.wind += yWnd; sumYarin.count++;
+
+                tbodyHTML += `
+                    <tr>
+                        <td><strong>${m.name}</strong></td>
+                        <td>${m.detail}</td>
+                        <td>${bTmax}</td>
+                        <td>${bTmin}</td>
+                        <td>${bPre}</td>
+                        <td>${bWnd}</td>
+                        <td>${yTmax}</td>
+                        <td>${yTmin}</td>
+                        <td>${yPre}</td>
+                        <td>${yWnd}</td>
+                        ${idx === 0 ? `<td rowspan="5" class="bg-avg-col" id="avg-bugun-cell"></td><td rowspan="5" class="bg-avg-col" id="avg-yarin-cell"></td>` : ''}
+                    </tr>
+                `;
+            }
+        });
+
+        const pTemp = appState.liveObs ? appState.liveObs.temp : 'N/A';
+        const pWind = appState.liveObs ? appState.liveObs.wind : 'N/A';
+        const pPre  = appState.liveObs ? appState.liveObs.precip : 'N/A';
+
+        tbodyHTML += `
+            <tr style="background-color: #f9f9f9; font-style: italic;">
+                <td><strong>Persistence Model</strong></td>
+                <td>Bugünün Gözlemi (Baseline)</td>
+                <td>${pTemp}</td>
+                <td>${pTemp}</td>
+                <td>${pPre}</td>
+                <td>${pWind}</td>
+                <td>${pTemp}</td>
+                <td>${pTemp}</td>
+                <td>${pPre}</td>
+                <td>${pWind}</td>
+            </tr>
+        `;
+
+        document.getElementById('multi-model-tbody').innerHTML = tbodyHTML;
+
+        if (sumBugun.count > 0) {
+            appState.avgBugun = {
+                tmax: (sumBugun.tmax / sumBugun.count).toFixed(1),
+                tmin: (sumBugun.tmin / sumBugun.count).toFixed(1),
+                precip: (sumBugun.precip / sumBugun.count).toFixed(1),
+                wind: (sumBugun.wind / sumBugun.count).toFixed(1)
+            };
+
+            appState.avgYarin = {
+                tmax: (sumYarin.tmax / sumYarin.count).toFixed(1),
+                tmin: (sumYarin.tmin / sumYarin.count).toFixed(1),
+                precip: (sumYarin.precip / sumYarin.count).toFixed(1),
+                wind: (sumYarin.wind / sumYarin.count).toFixed(1)
+            };
+
+            document.getElementById('avg-bugun-cell').innerHTML = `
+                Tmax: ${appState.avgBugun.tmax} °C<br>
+                Tmin: ${appState.avgBugun.tmin} °C<br>
+                Yağış: ${appState.avgBugun.precip} mm<br>
+                Rüzgâr: ${appState.avgBugun.wind} kt
+            `;
+
+            document.getElementById('avg-yarin-cell').innerHTML = `
+                Tmax: ${appState.avgYarin.tmax} °C<br>
+                Tmin: ${appState.avgYarin.tmin} °C<br>
+                Yağış: ${appState.avgYarin.precip} mm<br>
+                Rüzgâr: ${appState.avgYarin.wind} kt
+            `;
+
+            updateReportSummary();
+        }
+    }
+
+    function handleForecastSubmit(e) {
+        e.preventDefault();
+        
+        const forecastObj = {
+            id: Date.now().toString(),
+            date: document.getElementById('f-date').value,
+            tmax: parseFloat(document.getElementById('f-tmax').value),
+            tmin: parseFloat(document.getElementById('f-tmin').value),
+            precip: parseFloat(document.getElementById('f-precip').value),
+            wind: parseFloat(document.getElementById('f-wind').value),
+            confidence: document.getElementById('f-confidence').value,
+            reasoning: document.getElementById('f-reasoning').value,
+            createdAt: new Date().toISOString()
+        };
+
+        // 1. Yerel Hafızaya (localStorage) Kaydet
+        appState.forecasts.push(forecastObj);
+        localStorage.setItem('ltfm_local_forecasts', JSON.stringify(appState.forecasts));
+        
+        // Tablo ve metrikleri hemen güncelle
+        updateMetricsAndErrors();
+        
+        // 2. Eğer Firebase bağlı ise Buluta da Gönder
+        if (isFirebaseReady && forecastsRef) {
+            forecastsRef.push(forecastObj)
+                .then(() => {
+                    showAlert('Tahmin başarıyla buluta (Firebase) ve cihazınıza kaydedildi!', false);
+                })
+                .catch((err) => {
+                    showAlert('Cihaza kaydedildi fakat buluta gönderilemedi: ' + err.message, false);
+                });
+        } else {
+            showAlert('Tahmin cihazınıza başarıyla kaydedildi! (Firebase bağlandığında senkronize olacaktır)', false);
+        }
+
+        // Formu temizle ve tarihi bugüne sıfırla
+        document.getElementById('forecast-form').reset();
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('f-date').value = today;
+    }
+
+    function updateMetricsAndErrors() {
+        const total = appState.forecasts.length;
+        document.getElementById('stat-total-forecasts').innerText = total;
+
+        const rate = Math.min(100, Math.round((total / 30) * 100));
+        document.getElementById('stat-participation-rate').innerText = `%${rate}`;
+
+        let tbodyHTML = '';
+        let totalErr = 0;
+        let countErr = 0;
+
+        if (total > 0) {
+            appState.forecasts.forEach(f => {
+                const hasObs = appState.liveObs && !isNaN(appState.liveObs.temp);
+                const obsT = hasObs ? parseFloat(appState.liveObs.temp) : '-';
+                const obsP = hasObs ? parseFloat(appState.liveObs.precip) : '-';
+
+                let errT = '-';
+                let errP = '-';
+
+                if (hasObs) {
+                    errT = Math.abs(f.tmax - obsT).toFixed(1);
+                    errP = Math.abs(f.precip - obsP).toFixed(1);
+                    totalErr += parseFloat(errT);
+                    countErr++;
+                }
+
+                tbodyHTML += `
+                    <tr>
+                        <td>${f.date}</td>
+                        <td>${f.tmax} °C</td>
+                        <td>${obsT} ${hasObs ? '°C' : ''}</td>
+                        <td style="font-weight:bold; color:${errT !== '-' && parseFloat(errT) > 2 ? 'red' : 'green'};">${errT} ${hasObs ? '°C' : ''}</td>
+                        <td>${f.precip} mm</td>
+                        <td>${obsP} ${hasObs ? 'mm' : ''}</td>
+                        <td>${errP} ${hasObs ? 'mm' : ''}</td>
+                        <td>${f.confidence || 'Belirtilmedi'}</td>
+                        <td style="font-size:0.85em; text-align:left;">${f.reasoning || '-'}</td>
+                    </tr>
+                `;
+            });
+            document.getElementById('error-check-tbody').innerHTML = tbodyHTML;
+        } else {
+            document.getElementById('error-check-tbody').innerHTML = '<tr><td colspan="9">Henüz doğrulanmış tahmin verisi bulunmuyor.</td></tr>';
+        }
+
+        const mae = countErr > 0 ? (totalErr / countErr).toFixed(1) : '0.0';
+        document.getElementById('stat-mae-temp').innerText = `${mae} °C`;
+
+        document.getElementById('progress-list').innerHTML = `
+            <li><strong>Toplam Girilen Tahmin:</strong> ${total}</li>
+            <li><strong>Katılım Durumu:</strong> ${rate >= 70 ? '✅ Zorunlu %70 barajı sağlandı.' : '⚠️ Katılım %70 altında, daha fazla tahmin gerekli.'}</li>
+            <li><strong>Ortalama Mutlak Sıcaklık Hatası (MAE):</strong> ${mae} °C</li>
+            <li><strong>Son Tahmin Güven Seviyesi:</strong> ${total > 0 ? appState.forecasts[total - 1].confidence : 'Henüz veri yok'}</li>
+        `;
+
+        updateReportSummary();
+    }
+
+    function updateReportSummary() {
+        const box = document.getElementById('report-summary-box');
+        
+        let bugunMetni = appState.avgBugun 
+            ? `<li><strong>Bugün Model Ortalaması:</strong> Tmax ${appState.avgBugun.tmax}°C, Tmin ${appState.avgBugun.tmin}°C — Yağış ${appState.avgBugun.precip}mm, Rüzgâr ${appState.avgBugun.wind}kt</li>` 
+            : '';
+            
+        let yarinMetni = appState.avgYarin 
+            ? `<li><strong>Yarın Model Ortalaması:</strong> Tmax ${appState.avgYarin.tmax}°C, Tmin ${appState.avgYarin.tmin}°C — Yağış ${appState.avgYarin.precip}mm, Rüzgâr ${appState.avgYarin.wind}kt</li>` 
+            : '';
+            
+        let obsMetni = appState.liveObs 
+            ? `<li><strong>Anlık Gözlem (LTFM):</strong> Sıcaklık ${appState.liveObs.temp}°C, Yağış ${appState.liveObs.precip}mm</li>` 
+            : '';
+
+        box.innerHTML = `
+            <h4>LTFM Günlük Hava Tahmin Raporu Özet Bilgileri</h4>
+            <ul>
+                ${bugunMetni}
+                ${yarinMetni}
+                ${obsMetni}
+                <li><strong>Toplam Kayıtlı Tahmininiz:</strong> ${appState.forecasts.length} adet</li>
+            </ul>
+        `;
+    }
+
+    window.onload = function() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('f-date').value = today;
+
+        refreshLiveData();
+    };
+</script>
+
+</body>
+</html>
